@@ -1,0 +1,16 @@
+# Arquivos de Build do Maven
+/target/
+
+# Arquivos de IDE e Sistema
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+bin/
+.vscode/
+.DS_Store
+
+# Arquivos de log e temporários
+*.log
+*.tmp
