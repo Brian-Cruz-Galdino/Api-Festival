@@ -8,7 +8,7 @@ import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-// Imports adicionados para as novas funções
+// Imports que você precisa adicionar para as novas funções
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.DELETE;
 import jakarta.validation.constraints.Email;
@@ -151,7 +151,7 @@ public class UsuarioResource {
         }
         
         // 1. Revogar API keys associadas
-        // Isso é baseado no seu arquivo ApiKey.java
+        // (Baseado no seu ApiKey.java)
         List<ApiKey> keys = ApiKey.find("usuario.id", id).list();
         for (ApiKey key : keys) {
             key.status = ApiKey.StatusApiKey.REVOGADA; 
