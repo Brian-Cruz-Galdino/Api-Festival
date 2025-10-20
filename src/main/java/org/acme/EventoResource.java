@@ -289,8 +289,8 @@ public class EventoResource {
     @Path("{eventoId}/ingressos")
     @Operation(summary = "Comprar ingresso com idempotência", description = "Compra ingressos para um evento com suporte a idempotência")
     @Transactional
-    public Response comprarIngressoComIdempotencia(
-            @HeaderParam("Idempotency-Key") String idempotencyKey,
+public Response comprarIngressoComIdempotencia(
+            @HeaderParam("x-idempotency-key") String idempotencyKey, 
             @PathParam("eventoId") Long eventoId,
             @Valid CreateIngressoRequest request) {
 
