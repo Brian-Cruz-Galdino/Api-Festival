@@ -8,7 +8,7 @@ import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-// Imports que você precisa adicionar para as novas funções
+// Imports necessários para as funções CRUD
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.DELETE;
 import jakarta.validation.constraints.Email;
@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 @Tag(name = "Usuários", description = "Gerenciamento de usuários")
 public class UsuarioResource {
 
-    // Classe interna original para respostas
+    // Classe interna original para respostas (sem alterações)
     public static class UsuarioResponse {
         public Long id;
         public String nome;
@@ -35,24 +35,18 @@ public class UsuarioResource {
             this.id = usuario.id;
             this.nome = usuario.nome;
             this.email = usuario.email;
-            this.tipo = usuario.tipo.toString();
+            this.tipo = (usuario.tipo != null) ? usuario.tipo.toString() : null; // Tratamento para tipo nulo
         }
     }
-    
-    // =======================================================
-    // == NOVA CLASSE ADICIONADA PARA O UPDATE (EDIÇÃO) ======
-    // =======================================================
-    /**
-     * Classe DTO usada para receber atualizações de usuário.
-     * Não inclui a senha, que não deve ser atualizada por este endpoint.
-     */
+
+    // Classe interna para o payload de atualização (sem alterações)
     public static class UsuarioUpdateRequest {
         @Size(min = 2, max = 100, message = "O nome deve ter entre 2 e 100 caracteres")
         public String nome;
 
         @Email(message = "O email deve ser válido")
         public String email;
-        
+
         public Usuario.TipoUsuario tipo;
     }
 
@@ -67,13 +61,13 @@ public class UsuarioResource {
                     .entity("{\"message\": \"Email já cadastrado\"}")
                     .build();
         }
-        
-        // Se o tipo não for enviado no JSON, a entidade Usuario usará o default 'CLIENTE'
+
+        // Garante que o tipo default seja aplicado se não vier no JSON
         if (usuario.tipo == null) {
             usuario.tipo = Usuario.TipoUsuario.CLIENTE;
         }
 
-        // A senha já é hasheada pela entidade Usuario (método setSenha)
+        // A senha é hasheada automaticamente pelo setSenha da entidade Usuario
         usuario.persist();
         return Response.created(URI.create("/api/v1/usuarios/" + usuario.id))
                 .entity(new UsuarioResponse(usuario))
@@ -97,15 +91,15 @@ public class UsuarioResource {
     public Response buscarUsuario(@PathParam("id") Long id) {
         Usuario usuario = Usuario.findById(id);
         if (usuario == null) {
-            return Response.status(Response.Status.NOT_FOUND).build();
+            // Retorna 404 Not Found se o usuário não existir
+            return Response.status(Response.Status.NOT_FOUND)
+                           .entity("{\"message\": \"Usuário não encontrado\"}")
+                           .build();
         }
 
         return Response.ok(new UsuarioResponse(usuario)).build();
     }
-    
-    // =======================================================
-    // == NOVO MÉTODO ADICIONADO (PUT / EDITAR) ==============
-    // =======================================================
+
     @PUT
     @Path("/{id}")
     @Operation(summary = "Atualizar usuário", description = "Atualiza nome, email e tipo de um usuário")
@@ -117,29 +111,27 @@ public class UsuarioResource {
         }
 
         // Verifica se o novo email já existe em OUTRO usuário
-        if (request.email != null && !request.email.isBlank() && !request.email.equals(entity.email)) {
-            Usuario existing = Usuario.findByEmail(request.email);
-            if (existing != null && !existing.id.equals(entity.id)) {
-                return Response.status(Response.Status.CONFLICT).entity("{\"message\": \"Email já cadastrado por outro usuário\"}").build();
-            }
-            entity.email = request.email;
+        if (request.email != null && !request.email.isBlank() && !request.email.equalsIgnoreCase(entity.email)) {
+             Usuario existing = Usuario.findByEmail(request.email);
+             if (existing != null && !existing.id.equals(entity.id)) {
+                 return Response.status(Response.Status.CONFLICT).entity("{\"message\": \"Email já cadastrado por outro usuário\"}").build();
+             }
+             entity.email = request.email;
         }
-        
+
         if (request.nome != null && !request.nome.isBlank()) {
             entity.nome = request.nome;
         }
         if (request.tipo != null) {
             entity.tipo = request.tipo;
         }
-        
-        // Nota: Não atualizamos a senha aqui por segurança.
+
+        // Persiste as alterações (embora o @Transactional possa fazer isso automaticamente)
+        entity.persist();
 
         return Response.ok(new UsuarioResponse(entity)).build();
     }
 
-    // =======================================================
-    // == NOVO MÉTODO ADICIONADO (DELETE / EXCLUIR) ==========
-    // =======================================================
     @DELETE
     @Path("/{id}")
     @Operation(summary = "Excluir usuário", description = "Exclui um usuário e revoga todas as suas API keys")
@@ -149,17 +141,23 @@ public class UsuarioResource {
         if (entity == null) {
             return Response.status(Response.Status.NOT_FOUND).entity("{\"message\": \"Usuário não encontrado\"}").build();
         }
-        
+
         // 1. Revogar API keys associadas
-        // (Baseado no seu ApiKey.java)
         List<ApiKey> keys = ApiKey.find("usuario.id", id).list();
         for (ApiKey key : keys) {
-            key.status = ApiKey.StatusApiKey.REVOGADA; 
+            key.status = ApiKey.StatusApiKey.REVOGADA;
+            // O @Transactional deve persistir a mudança no status da key
         }
-        
+
         // 2. Deletar o usuário
-        entity.delete();
-        
+        boolean deleted = Usuario.deleteById(id); // Usar deleteById é mais idiomático com Panache
+        if (!deleted) {
+             // Pode acontecer se houver algum problema de concorrência ou FK, embora raro aqui
+             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                            .entity("{\"message\": \"Falha ao deletar usuário.\"}")
+                            .build();
+        }
+
         return Response.noContent().build();
     }
 }
