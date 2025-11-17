@@ -22,9 +22,9 @@ public class RateLimitingFilter implements ContainerRequestFilter, ContainerResp
 
     // Limites por endpoint
     private static final Map<String, Integer> ENDPOINT_LIMITS = Map.of(
-            "/api/v1/ingressos", 50,
+            "/api/v1/ingressos", 10,
             "/api/v1/apikeys/generate", 10,
-            "/api/v1/auth/login", 20
+            "/api/v1/auth/login", 10
     );
     private static final int DEFAULT_LIMIT = 100;
 
